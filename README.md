@@ -1,6 +1,6 @@
 # Smart College Attendance Management System
 
-A production-ready full-stack web application for college attendance management — featuring **three distinct role portals (Administrator, Teacher, Student)**, manual attendance marking, **PyMuPDF digital roster extraction**, scanned register processing, attendance correction audit trails, and live database analytics.
+A production-ready full-stack web application for college attendance management — featuring **three distinct role portals (Administrator, Teacher, Student)**, manual attendance marking, **PyMuPDF digital roster extraction**, scanned register processing with Google Gemini & Tesseract OCR, attendance correction audit trails, and live database analytics.
 
 ---
 
@@ -8,382 +8,362 @@ A production-ready full-stack web application for college attendance management 
 
 1. **Mandatory 3-Role Login Landing Page**:
    - Three clickable cards: **Administrator**, **Teacher**, and **Student**.
-   - Server-side role enforcement: backend rejects any role mismatch/spoofing.
+   - Server-side role enforcement: backend rejects any role mismatch or privilege escalation.
    - Session preservation on page refresh and automatic routing to role-specific workspaces.
-2. **PDF Student Roster Import**:
+2. **Multi-Provider Document & Register Extraction**:
+   - **Google Gemini Vision** (`google-genai`): Handles scanned, wrinkled, and handwritten attendance ledgers.
+   - **PyMuPDF Direct Extraction** (`fitz`): Blazing-fast sub-second extraction on digital PDF registers.
+   - **OpenCV Table Grid Detection**: Auto-detects table cells, borders, and rows.
+   - **Tesseract OCR Fallback**: Windows auto-detected fallback for offline OCR.
+   - **Candidate Preservation**: Never discards candidate rows, even for unenrolled classes.
+3. **PDF Student Roster Import**:
    - Dedicated Administrator page (`/admin/roster-import`).
-   - Direct text extraction via **PyMuPDF** (`pymupdf==1.28.2`).
    - Duplicate USN detection, interactive preview table, and atomic database commits.
-3. **Teacher Quick-Add Capabilities**:
+4. **Teacher Quick-Add Capabilities**:
    - Teachers can instantly add new students to an assigned class (`full_name` + `USN`).
    - Teachers can add new subjects (`subject_name` + `subject_code`) without waiting for admin approval.
-4. **Attendance Correction & Audit Trail**:
-   - Teachers can edit past finalized attendance records with mandatory audit justification (`AttendanceCorrection` log).
+5. **Attendance Correction & Audit Trail**:
+   - Teachers can edit finalized attendance records with mandatory audit justification (`AttendanceCorrection` log).
    - Students can file formal correction requests directly from their portal.
-5. **Real-time Database Metrics (Zero Fake Stats)**:
+6. **Real-time Database Metrics (Zero Fake Stats)**:
    - Dedicated analytics endpoints (`/api/dashboards/admin`, `/api/dashboards/teacher`, `/api/dashboards/student`).
-   - Recharts visual analytics: attendance trends, doughnut distribution, and shortage warnings (<75%).
-6. **Institutional Design System**:
+   - Visual analytics: attendance trends, doughnut distribution, and shortage warnings (<75%).
+7. **Institutional Design System**:
    - Custom palette: `#F4F5F1` Canvas, `#243630` Forest Green, `#465F56` Secondary, `#FF685F` Coral, `#55D5ED` Cyan.
 
 ---
 
-## 🛠️ Stack
+## 🛠️ Technology Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router 6, TanStack Query, Recharts, React Hook Form + Zod |
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2 (Async), Pydantic v2, Alembic, SlowAPI |
-| Database | PostgreSQL 16 (production & Docker) / SQLite async fallback (local dev) |
-| Document Processing | PyMuPDF (`fitz`), Tesseract OCR 5 (`pytesseract`), OpenCV |
-| Auth & Security | Stateless JWT (HS256), Argon2 password hashing, Role-based guard middleware |
-| Testing | Pytest (`pytest-asyncio`), Vitest, React Testing Library |
-| Deployment | Docker, Docker Compose |
+|---|---|
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router 6, TanStack Query, Recharts, React Hook Form + Zod |
+| **Backend** | Python 3.10+, FastAPI, SQLAlchemy 2 (Async), Pydantic v2, Alembic, SlowAPI |
+| **Database** | SQLite async (`aiosqlite`) for zero-config local dev; PostgreSQL 16 for production & Docker |
+| **Document Processing** | PyMuPDF (`pymupdf`), Google Gemini Vision (`google-genai`), OpenCV (`opencv-python-headless`), Tesseract OCR (`pytesseract`) |
+| **Auth & Security** | Stateless JWT (HS256), Argon2 password hashing, Role-based guard middleware |
+| **Testing** | Pytest (`pytest-asyncio`), Vitest, React Testing Library |
 
 ---
 
-## Prerequisites
+## ⚡ Complete Setup in One CMD Block (Windows Command Prompt)
 
-- Docker Desktop (Windows/Mac/Linux) — recommended
-- **OR** for local development:
-  - Python 3.12+
-  - Node.js 20+
-  - PostgreSQL 16
-  - Tesseract OCR (see below)
+Open **Command Prompt (`cmd.exe`)**, navigate to the project directory, and run the following block of commands to set up the entire project end-to-end:
 
----
+```cmd
+:: ============================================================================
+:: SMART COLLEGE ATTENDANCE SYSTEM — ONE-BLOCK SETUP (CMD)
+:: Run from the project root folder (e.g., D:\attendance_project2)
+:: ============================================================================
 
-## Quick Start with Docker
+:: 1. Create environment configuration files
+copy .env.example .env
+copy .env.example backend\.env
 
-### 1. Clone and configure environment
-
-```bash
-git clone <repo-url>
-cd attendance_project
-cp .env.example .env
-```
-
-Edit `.env` and set **strong** values for:
-- `POSTGRES_PASSWORD`
-- `SECRET_KEY` (generate: `python -c "import secrets; print(secrets.token_hex(32))"`)
-- `BOOTSTRAP_ADMIN_PASSWORD`
-
-### 2. Start all services
-
-```bash
-docker compose up --build -d
-```
-
-Wait ~30 seconds for all services to become healthy.
-
-### 3. Run database migrations
-
-```bash
-docker compose exec backend alembic upgrade head
-```
-
-### 4. Create the administrator account
-
-```bash
-docker compose exec backend python scripts/create_admin.py
-```
-
-### 5. (Optional) Load development seed data
-
-```bash
-docker compose exec backend python scripts/seed_dev.py
-```
-
-> ⚠️ **Never run seed_dev.py in production.** It creates test accounts with known passwords.
-
-### 6. Access the application
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| API Documentation | http://localhost:8000/docs |
-
----
-
-## Local Development (without Docker)
-
-### Backend
-
-```bash
+:: 2. Set up Python virtual environment and install backend dependencies
 cd backend
-
-# Create virtual environment
 python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-# Linux/Mac
-source .venv/bin/activate
-
+call .venv\Scripts\activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 
-# Create .env from template
-copy ..\.env.example .env   # Windows
-# edit .env to point to your local PostgreSQL
+:: 3. Initialize SQLite database & seed default demonstration accounts
+python scripts\create_admin.py
+python scripts\seed_dev.py
 
-# Run migrations
-alembic upgrade head
-
-# Create admin
-python scripts/create_admin.py
-
-# Start backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
+:: 4. Install frontend dependencies
+cd ..\frontend
 npm install
 
-# Create .env.local
-echo "VITE_API_BASE_URL=http://localhost:8000" > .env.local
-
-npm run dev
-# Open http://localhost:5173
+:: 5. Return to root
+cd ..
+echo ============================================================================
+echo Setup Complete! Run the start commands below to launch the servers.
+echo ============================================================================
 ```
 
 ---
 
-## Tesseract OCR — Installation
+## 🚀 Running the Application
 
-### Windows (local development)
-1. Download the installer from: https://github.com/UB-Mannheim/tesseract/wiki
-2. Install Tesseract 5.x with English language data
-3. Add Tesseract to PATH, or set `TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe` in `.env`
+### Option A: Two Separate Terminals (Recommended)
 
-### Linux / Docker
-Tesseract is installed automatically by the backend Dockerfile:
-```dockerfile
-RUN apt-get install -y tesseract-ocr tesseract-ocr-eng
-```
+Open two terminal windows (Command Prompt or PowerShell) from the project root:
 
-### Verify installation
-```bash
-tesseract --version
-```
-
----
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Async PostgreSQL URL | Required |
-| `SECRET_KEY` | JWT signing key (min 32 chars) | Required |
-| `ALGORITHM` | JWT algorithm | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token TTL | `60` |
-| `ALLOWED_ORIGINS` | CORS origins (comma-separated) | `http://localhost:5173` |
-| `UPLOAD_DIR` | Path for uploaded files | `uploads` |
-| `MAX_UPLOAD_SIZE_MB` | Max image upload size | `10` |
-| `TESSERACT_CMD` | Tesseract executable path | `tesseract` |
-| `OCR_MIN_CONFIDENCE` | Min OCR confidence score | `50` |
-| `MIN_ATTENDANCE_PERCENTAGE` | Default attendance threshold | `75` |
-| `BOOTSTRAP_ADMIN_USERNAME` | Admin username for setup | `admin` |
-| `BOOTSTRAP_ADMIN_EMAIL` | Admin email for setup | Required |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Admin password for setup | Required (strong) |
-| `APP_ENV` | `development` or `production` | `development` |
-| `VITE_API_BASE_URL` | Frontend API base URL | `http://localhost:8000` |
-
----
-
-## Database Migrations
-
-```bash
-# Apply all migrations
-alembic upgrade head
-
-# Create a new migration
-alembic revision --autogenerate -m "description"
-
-# Roll back one step
-alembic downgrade -1
-
-# View current state
-alembic current
-```
-
----
-
-## Running Tests
-
-### Backend
-```bash
+#### **Terminal 1 — Backend (FastAPI)**
+```cmd
 cd backend
-
-# Install test dependencies (already in requirements.txt)
-pip install -r requirements.txt
-
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=app --cov-report=term-missing
-
-# Run specific test file
-pytest app/tests/test_auth.py -v
+.venv\Scripts\activate
+python -m uvicorn app.main:app --reload --port 8000
 ```
+*(If running globally without a virtualenv: `python -m uvicorn app.main:app --reload --port 8000`)*
 
-### Frontend
-```bash
+#### **Terminal 2 — Frontend (Vite / React)**
+```cmd
 cd frontend
-npm run test
+npm run dev
 ```
 
 ---
 
-## Development Seed Accounts
+### Option B: One-Click Launch (PowerShell)
 
-After running `scripts/create_admin.py` and `scripts/seed_dev.py`:
+From PowerShell in the project root, start both servers in separate windows automatically:
 
-| Role Portal | Username / Identifier | Password | Access Details |
-|-------------|-----------------------|----------|----------------|
-| **Administrator** | `admin` | `Admin@SecurePass123` | Full access to departments, classes, subjects, students, teachers, PDF roster import, audit logs |
-| **Teacher** | `dr.sharma` | `Lecturer@123` | CS301 (Data Structures) & CS302 (DBMS), Take attendance, Quick-add student/subject, Process registers |
-| **Teacher** | `prof.patel` | `Lecturer@123` | CS303 (Computer Networks), Take attendance, Session reviews |
-| **Student** | `1cs21cs001` | `Student@123` | USN 1CS21CS001: Personal attendance metrics, subject breakdown, shortage alerts, correction requests |
-| **Student** | `1cs21cs002` | `Student@123` | USN 1CS21CS002: Personal attendance records |
-| **Student** | `1cs21cs003` | `Student@123` | USN 1CS21CS003: Personal attendance records |
+```powershell
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd backend; if (Test-Path .venv\Scripts\activate.ps1) { .\.venv\Scripts\activate }; python -m uvicorn app.main:app --reload --port 8000"; Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd frontend; npm run dev"
+```
+
+---
+
+### 🌐 Access URLs
+
+| Interface | URL | Purpose |
+|---|---|---|
+| **Web Application** | **[http://localhost:5173](http://localhost:5173)** | Main 3-role portal login & dashboards |
+| **Backend API Docs** | **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)** | Interactive Swagger UI API explorer |
+| **API Health Check** | **[http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)** | Server status check (`{"status": "ok"}`) |
+
+---
+
+## 🔑 Pre-Seeded Login Accounts
+
+After running `scripts/create_admin.py` and `scripts/seed_dev.py`, log in using any of the following accounts:
+
+| Role Portal | Username / USN | Password | Included Permissions & Features |
+|---|---|---|---|
+| 🛡️ **Administrator** | `admin` | `Admin@SecurePass123` | Full access to departments, classes, subjects, faculty, students, PDF roster import, audit logs |
+| 🎓 **Teacher** | `dr.sharma` | `Lecturer@123` | CS301 (Data Structures) & CS302 (DBMS), Manual attendance, OCR register processing, Past corrections |
+| 🎓 **Teacher** | `prof.patel` | `Lecturer@123` | CS303 (Computer Networks), Take attendance, Session reviews |
+| 👤 **Student** | `1cs21cs001` | `Student@123` | Personal attendance stats, subject breakdown, shortage alerts (<75%), correction requests |
+| 👤 **Student** | `1cs21cs002` | `Student@123` | Personal attendance ledger and statistics |
+| 👤 **Student** | `1cs21cs003` | `Student@123` | Personal attendance ledger and statistics |
 
 > 🔒 **Security Notice**: On the login page, select the matching **Role Card** before entering credentials. The backend verifies the actual role in the database and rejects any cross-role spoofing.
 
 ---
 
-## Stopping the Application
+## 📋 Step-by-Step Installation & Configuration Guide
 
+### 1. Prerequisites
+Ensure you have the following installed on your system:
+- **Python**: Version 3.10, 3.11, 3.12, or 3.13 ([python.org](https://www.python.org/downloads/))
+- **Node.js**: Version 18 or 20+ LTS ([nodejs.org](https://nodejs.org/))
+- **Git** (optional, for cloning)
+
+---
+
+### 2. Configure Environment (`.env`)
+
+Copy `.env.example` to `.env` in both the project root and `backend/`:
+
+**Windows (CMD):**
+```cmd
+copy .env.example .env
+copy .env.example backend\.env
+```
+
+**Linux / macOS (Bash):**
 ```bash
-docker compose down          # Stop containers
-docker compose down -v       # Stop and remove volumes (data lost)
+cp .env.example .env
+cp .env.example backend/.env
+```
+
+#### Key Environment Variables in `.env`:
+```env
+# Database (Default uses local SQLite — no PostgreSQL install needed for development)
+DATABASE_URL=sqlite+aiosqlite:///./attendance.db
+
+# JWT Security
+SECRET_KEY=dev_secret_key_not_for_production_replace_with_64_char_random_string_abc123xyz
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# Document Extraction Engine
+ATTENDANCE_EXTRACTION_PROVIDER=auto    # Options: auto, gemini, pymupdf, tesseract
+ENABLE_OPENCV_GRID_DETECTION=true
+
+# Google Gemini Vision (Optional - for advanced handwritten registers)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+
+# Tesseract OCR path (Auto-detected on standard Windows installations)
+TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
 ```
 
 ---
 
-## Troubleshooting
+### 3. Backend Setup & Dependencies Installation
 
-### Database connection fails
-- Check `DATABASE_URL` in `.env`
-- Ensure PostgreSQL container is healthy: `docker compose ps`
-- Wait 10–15 seconds after `docker compose up` before running migrations
-
-### Migrations fail
-- Ensure the database is running and credentials are correct
-- Check `alembic.ini` has the correct `sqlalchemy.url` (overridden by env in `alembic/env.py`)
-
-### OCR returns no results
-- Image quality too low — try a clearer, well-lit photo
-- Tesseract not installed — check `TESSERACT_CMD` path in `.env`
-- Run `docker compose exec backend tesseract --version` to verify
-
-### Frontend shows 401 errors
-- Token may have expired — log out and log back in
-- Check `VITE_API_BASE_URL` points to the correct backend
-
-### CORS errors
-- Add the frontend origin to `ALLOWED_ORIGINS` in `.env`
-- Restart the backend after changing CORS settings
+1. Navigate to `backend/`:
+   ```cmd
+   cd backend
+   ```
+2. Create and activate a Python virtual environment:
+   ```cmd
+   python -m venv .venv
+   call .venv\Scripts\activate
+   ```
+   *(On Linux/macOS: `source .venv/bin/activate`)*
+3. **Install all required Python packages from `requirements.txt`:**
+   ```cmd
+   python -m pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+4. Initialize the database and create the initial Administrator account:
+   ```cmd
+   python scripts\create_admin.py
+   ```
+5. Populate the sample classes, subjects, teachers, and enrolled students:
+   ```cmd
+   python scripts\seed_dev.py
+   ```
 
 ---
 
-## Project Structure
+### 4. Frontend Setup
+
+1. Navigate to `frontend/`:
+   ```cmd
+   cd ..\frontend
+   ```
+2. Install npm packages:
+   ```cmd
+   npm install
+   ```
+3. (Optional) Run frontend build check:
+   ```cmd
+   npm run build
+   ```
+
+---
+
+## 🤖 Document Extraction & OCR Configuration
+
+The system uses a resilient multi-tier extraction pipeline:
+
+1. **PyMuPDF (`fitz`) — Instant Digital Extraction (Included)**:
+   - Installed via `requirements.txt`.
+   - Extracts selectable text and tables from digital PDF attendance sheets in under 0.5s without any external binaries or API keys.
+2. **Google Gemini Vision — Handwritten & Scanned Registers (Recommended)**:
+   - To enable AI vision extraction for photographed/scanned handwritten sheets:
+     1. Get a free API key from [Google AI Studio](https://aistudio.google.com/).
+     2. Add your key in `.env`:
+        ```env
+        GEMINI_API_KEY=AIzaSy...your_actual_key_here...
+        GEMINI_MODEL=gemini-2.5-flash
+        ```
+3. **Tesseract OCR — Offline OCR Fallback**:
+   - Windows: Download the installer from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
+   - If installed to `C:\Program Files\Tesseract-OCR\tesseract.exe`, the application auto-detects it automatically.
+   - Linux: `sudo apt-get install -y tesseract-ocr tesseract-ocr-eng`.
+
+---
+
+## 🧪 Running Automated Tests
+
+### Backend Test Suite (Pytest)
+```cmd
+cd backend
+python -m pytest app/tests
+```
+*(Tests cover authentication, attendance sessions, document extraction providers, roster matching, audit logging, and reporting).*
+
+### Frontend Test Suite (Vitest)
+```cmd
+cd frontend
+npm test -- --run
+```
+
+---
+
+## 🐳 Alternative: Run with Docker Compose
+
+If you have Docker Desktop installed and prefer containerized PostgreSQL:
+
+```bash
+# 1. Start all containers (PostgreSQL, FastAPI Backend, React Frontend)
+docker compose up --build -d
+
+# 2. Apply database migrations
+docker compose exec backend alembic upgrade head
+
+# 3. Create administrator and seed data
+docker compose exec backend python scripts/create_admin.py
+docker compose exec backend python scripts/seed_dev.py
+```
+
+To stop Docker containers:
+```bash
+docker compose down
+```
+
+---
+
+## 🛠️ Troubleshooting & FAQs
+
+### 1. "ModuleNotFoundError: No module named 'app'"
+Make sure you are executing python commands either from within the `backend/` folder or using the module flag:
+```cmd
+cd backend
+python scripts\seed_dev.py
+```
+
+### 2. "Duplicate student ID detected"
+Each student can only have **one** attendance record per session. If a student was matched to multiple rows in an OCR scan, use the **Trash icon (`Action` column)** on the review page to delete redundant rows before clicking **Confirm & Save**.
+
+### 3. Port 8000 or 5173 is already in use
+Check and terminate any existing processes:
+```powershell
+# PowerShell:
+Get-Process -Name python, node -ErrorAction SilentlyContinue | Stop-Process -Force
+```
+
+### 4. Viewing Data in SQLite
+The database file is stored at `backend\attendance.db`. You can view and edit tables using **[DB Browser for SQLite](https://sqlitebrowser.org/)** or via command line:
+```cmd
+python -m sqlite3 backend\attendance.db "SELECT id, full_name, usn FROM students LIMIT 5;"
+```
+
+---
+
+## 📁 Project Directory Structure
 
 ```
 attendance_project/
 ├── backend/
 │   ├── app/
-│   │   ├── api/routes/      # FastAPI route handlers
-│   │   ├── core/            # Config, DB, auth, dependencies
-│   │   ├── models/          # SQLAlchemy ORM models
-│   │   ├── schemas/         # Pydantic schemas
+│   │   ├── api/routes/          # FastAPI endpoints (auth, attendance, ocr, dashboards, etc.)
+│   │   ├── core/                # Configuration, DB engine, security, JWT dependencies
+│   │   ├── models/              # SQLAlchemy ORM models (users, students, sessions, records)
+│   │   ├── schemas/             # Pydantic validation schemas
 │   │   ├── services/
-│   │   │   ├── attendance/  # Attendance business logic
-│   │   │   ├── ocr/         # OCR pipeline
-│   │   │   └── reports/     # Report generation
-│   │   └── tests/           # Pytest test suite
-│   ├── alembic/             # Database migrations
-│   ├── scripts/             # Admin bootstrap & seed
-│   └── requirements.txt
+│   │   │   ├── attendance/      # Session finalization, draft saves & correction logic
+│   │   │   ├── extraction/      # Gemini, PyMuPDF, OpenCV Grid & Tesseract providers
+│   │   │   ├── ocr/             # Register extraction pipeline & roster matching
+│   │   │   └── reports/         # Attendance reports & analytics
+│   │   └── tests/               # Pytest integration & unit test suite
+│   ├── alembic/                 # Database migrations (for PostgreSQL)
+│   ├── scripts/
+│   │   ├── create_admin.py      # Admin bootstrap script
+│   │   └── seed_dev.py          # Development roster & user seed script
+│   ├── uploads/                 # Uploaded register PDFs and images
+│   ├── attendance.db            # Local SQLite database file
+│   └── requirements.txt         # Backend Python dependencies
 ├── frontend/
-│   └── src/
-│       ├── api/             # Axios API clients
-│       ├── components/ui/   # Reusable UI components
-│       ├── features/auth/   # Auth context & guards
-│       ├── layouts/         # App shell & sidebar
-│       ├── pages/
-│       │   ├── admin/       # Administrator pages
-│       │   ├── lecturer/    # Lecturer pages
-│       │   └── student/     # Student pages
-│       └── types/           # TypeScript interfaces
-├── docker-compose.yml
-├── .env.example
-└── README.md
+│   ├── src/
+│   │   ├── api/                 # Axios API clients for FastAPI
+│   │   ├── components/ui/       # Badges, modals, cards, spinners, page headers
+│   │   ├── features/auth/       # Role-card login context & route protection
+│   │   ├── layouts/             # Dashboard layouts & navigation sidebars
+│   │   ├── pages/
+│   │   │   ├── admin/           # Admin portals (classes, teachers, students, roster import)
+│   │   │   ├── lecturer/        # Teacher portals (take attendance, OCR review, reports)
+│   │   │   └── student/         # Student portal (attendance charts, correction requests)
+│   │   └── types/               # TypeScript definitions
+│   ├── package.json
+│   └── vite.config.ts
+├── docker-compose.yml           # PostgreSQL + backend + frontend container stack
+├── .env.example                 # Environment template
+└── README.md                    # Project documentation & execution guide
 ```
-
----
-
-## Implemented Features
-
-### Authentication & Security
-- JWT-based auth with Argon2 password hashing
-- Role-based access control (Admin, Lecturer, Student)
-- Backend authorization on every protected endpoint
-- Audit logging for all significant actions
-- Secure file upload with type/size validation
-- CORS, rate limiting, safe error responses
-
-### Administrator
-- Dashboard with stats and charts
-- Full CRUD: departments, classes, subjects
-- Student and lecturer management with optional login accounts
-- Teaching assignment management
-- Attendance session overview
-- Class attendance reports with CSV export
-- Audit log viewer
-- Application settings (configurable attendance threshold)
-
-### Lecturer
-- Dashboard with assignment and session summaries
-- Create attendance sessions (manual or OCR)
-- Manual attendance — mark each student present/absent, bulk actions
-- Draft save and explicit finalization
-- OCR upload with image preview, preprocessing, and Tesseract extraction
-- OCR review — correct matched/unmatched/uncertain rows, assign students, set status
-- Authorized correction of finalized records with reason and audit trail
-- Session detail view, attendance history, reports with CSV export
-
-### Student
-- Dashboard with overall and per-subject attendance
-- Attendance shortage warnings
-- Subject-wise attendance with progress bars
-- Full attendance report with chart, print support
-
-### OCR Pipeline
-- OpenCV preprocessing: grayscale, denoise, adaptive threshold, deskew
-- Tesseract OCR with confidence scores
-- USN extraction and normalization
-- Roster matching: exact, fuzzy (bigram similarity), uncertain, unmatched, duplicate, missing
-- Structured draft returned to lecturer for review
-- Attendance status never auto-finalized
-
-### Reports & Calculations
-- Attendance % = attended / finalized sessions × 100
-- Only finalized sessions in calculations (draft sessions excluded)
-- Division-by-zero safe
-- CSV export for class reports
-- Print-friendly student report
-
----
-
-## Known Limitations
-
-1. **OCR accuracy** depends heavily on image quality. Handwritten registers may have low confidence scores requiring significant manual correction.
-2. **PaddleOCR** is designed as an alternative but not yet wired in — the matcher/preprocessor pipeline is modular and ready for it.
-3. The **upload directory** is local filesystem — for production, replace with S3 or equivalent object storage.
-4. The **refresh token** is not stored server-side — logout does not invalidate tokens (stateless JWT). Add a token denylist for stricter logout.
-5. **Mobile layout** is functional but not fully optimized for small screens.
