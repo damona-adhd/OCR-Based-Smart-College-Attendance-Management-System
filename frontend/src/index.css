@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background-color: #F4F5F1;
+    color: #202521;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { @apply text-2xl font-bold text-ink-primary; }
+  h2 { @apply text-xl font-semibold text-ink-primary; }
+  h3 { @apply text-lg font-semibold text-ink-primary; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+  }
+  .btn-primary {
+    @apply btn bg-forest text-white hover:bg-forest-700 focus:ring-forest active:scale-[0.99];
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink-primary border border-ink-border hover:bg-gray-50 focus:ring-forest;
+  }
+  .btn-coral {
+    @apply btn bg-coral text-white hover:bg-coral-hover focus:ring-coral;
+  }
+  .btn-danger {
+    @apply btn bg-status-absent text-white hover:bg-red-700 focus:ring-red-500;
+  }
+  .btn-ghost {
+    @apply btn text-ink-secondary hover:bg-gray-100 hover:text-ink-primary focus:ring-gray-300 shadow-none;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-ink-border p-6;
+  }
+  .input {
+    @apply block w-full px-3.5 py-2.5 bg-white border border-ink-border rounded-xl text-sm text-ink-primary placeholder-ink-secondary/60 focus:outline-none focus:ring-2 focus:ring-forest focus:border-transparent transition;
+  }
+  .input-error {
+    @apply border-status-absent focus:ring-status-absent;
+  }
+  .label {
+    @apply block text-sm font-medium text-ink-primary mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-green  { @apply badge bg-[#EAF5F0] text-status-present; }
+  .badge-red    { @apply badge bg-[#FDF0EF] text-status-absent; }
+  .badge-yellow { @apply badge bg-[#FEF6EC] text-status-warning; }
+  .badge-blue   { @apply badge bg-[#EBFBFE] text-[#0B7285]; }
+  .badge-gray   { @apply badge bg-gray-100 text-ink-secondary; }
+  .badge-forest { @apply badge bg-forest-100 text-forest; }
+  .table-th {
+    @apply px-4 py-3.5 text-left text-xs font-semibold text-ink-secondary uppercase tracking-wider bg-gray-50/70 border-b border-ink-border;
+  }
+  .table-td {
+    @apply px-4 py-3.5 text-sm text-ink-primary border-b border-ink-border/60;
+  }
+}
